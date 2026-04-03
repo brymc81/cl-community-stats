@@ -13,6 +13,8 @@ class Community_Stats_Element extends Element {
     public $name = 'cl-community-stats';
     public $category = 'general';
     public $icon = 'ti-stats-up';
+    private static $missing_community_key_logged = false;
+    private static $invalid_response_logged = false;
 
     public function get_label() {
         return __( 'Community Stats', 'cl-community-stats' );
@@ -28,6 +30,7 @@ class Community_Stats_Element extends Element {
             'label' => 'Community Key',
             'type' => 'text',
             'default' => '',
+            'required' => true,
             'hasDynamicData' => true,
         ];
 
@@ -65,6 +68,7 @@ class Community_Stats_Element extends Element {
         ];
 
         if ( '' === $community_key ) {
+            $this->log_missing_community_key();
             $this->render_stats_grid( array(), $stats );
             return;
         }
@@ -113,26 +117,44 @@ class Community_Stats_Element extends Element {
         );
 
         if ( is_wp_error( $response ) ) {
+            $this->log_invalid_response( 'request_error' );
             return array();
         }
 
         $status = (int) wp_remote_retrieve_response_code( $response );
         if ( $status < 200 || $status >= 300 ) {
+            $this->log_invalid_response( 'http_' . $status );
             return array();
         }
 
         $body = wp_remote_retrieve_body( $response );
         if ( ! is_string( $body ) || '' === $body ) {
+            $this->log_invalid_response( 'empty_body' );
             return array();
         }
 
         $decoded = json_decode( $body, true );
         if ( ! is_array( $decoded ) ) {
+            $this->log_invalid_response( 'invalid_json' );
             return array();
         }
 
-        $market = $decoded['data']['market'] ?? array();
-        return is_array( $market ) ? $market : array();
+        if ( $this->is_soft_failure_payload( $decoded ) ) {
+            return array();
+        }
+
+        if ( ! isset( $decoded['data'] ) || ! is_array( $decoded['data'] ) || ! array_key_exists( 'market', $decoded['data'] ) ) {
+            $this->log_invalid_response( 'invalid_shape' );
+            return array();
+        }
+
+        $market = $decoded['data']['market'];
+        if ( ! is_array( $market ) ) {
+            $this->log_invalid_response( 'invalid_shape' );
+            return array();
+        }
+
+        return $market;
     }
 
     private function render_dynamic_value( $value ): string {
@@ -149,7 +171,12 @@ class Community_Stats_Element extends Element {
             }
         }
 
-        return trim( $resolved );
+        $resolved = trim( $resolved );
+        if ( $this->is_unresolved_dynamic_placeholder( $resolved ) ) {
+            return '';
+        }
+
+        return $resolved;
     }
 
     public static function format_currency_compact( $value ): string {
@@ -197,5 +224,36 @@ class Community_Stats_Element extends Element {
 
         $value = rtrim( $value, '0' );
         return rtrim( $value, '.' );
+    }
+
+    private function is_soft_failure_payload( array $payload ): bool {
+        if ( ! isset( $payload['state'] ) || ! is_string( $payload['state'] ) ) {
+            return false;
+        }
+
+        $state = strtolower( trim( $payload['state'] ) );
+        return in_array( $state, array( 'no_context', 'invalid_context', 'engine_error' ), true );
+    }
+
+    private function is_unresolved_dynamic_placeholder( string $value ): bool {
+        return 1 === preg_match( '/^\{[a-z0-9_:-]+\}$/i', trim( $value ) );
+    }
+
+    private function log_missing_community_key(): void {
+        if ( self::$missing_community_key_logged ) {
+            return;
+        }
+
+        error_log( '[CL Community Stats] Missing required community_key; rendering empty state.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+        self::$missing_community_key_logged = true;
+    }
+
+    private function log_invalid_response( string $reason ): void {
+        if ( self::$invalid_response_logged ) {
+            return;
+        }
+
+        error_log( '[CL Community Stats] Invalid stats response (' . $reason . '); rendering empty state.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+        self::$invalid_response_logged = true;
     }
 }
