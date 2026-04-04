@@ -9,7 +9,7 @@ Authoritative API contracts and canonical field definitions are maintained in `c
 
 cl-community-stats is a presentation-layer adapter for community-level market statistics.
 
-It consumes canonical data from `cl-reso-link` and renders formatted output for use in Bricks templates.
+It consumes canonical data from `cl-reso-link` and renders SSR output for Bricks templates.
 
 ---
 
@@ -20,12 +20,7 @@ This plugin is responsible for:
 - Fetching community statistics from:
   `/wp-json/cl-reso-link/v1/stats/community`
 
-- Formatting values for UI display:
-  - currency (compact)
-  - percentage (1 decimal)
-  - numeric (1 decimal)
-
-- Rendering structured HTML for Bricks elements
+- Rendering minimal SSR stat cards (`value` + `label`) for Bricks elements
 
 ---
 
@@ -39,6 +34,8 @@ This plugin MUST NOT:
 - Define or alter API contracts
 - Contain business logic
 - Depend on URL structure or post slug
+- Reshape canonical response payloads in UI templates
+- Perform ad-hoc value formatting in UI component markup
 
 ---
 
@@ -49,9 +46,9 @@ Input:
 - `months` (optional, default: 12)
 
 Output:
-- Median Sale Price
-- Months of Inventory
-- Sale-to-List Ratio
+- `median_sale_price`
+- `months_of_inventory`
+- `sale_to_list_ratio`
 
 Values are sourced directly from:
 `cl-reso-link` canonical stats endpoint.
@@ -60,9 +57,9 @@ Values are sourced directly from:
 
 ## Error Handling
 
-- Failed requests return empty stat values
-- No placeholder text is rendered
-- Labels remain visible
+- Failed requests render no stat output
+- Missing values are hidden per-stat
+- No placeholder text or empty stats container is rendered
 
 ---
 
@@ -99,3 +96,4 @@ Not permitted:
 - Derived metrics
 - Trend calculations
 - Data aggregation logic
+- UI-template formatting logic without an explicit formatting layer

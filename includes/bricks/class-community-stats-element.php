@@ -53,23 +53,13 @@ class Community_Stats_Element extends Element {
         $months = max( 1, min( 60, $months ) );
 
         $stats = [
-            'median_sale_price' => [
-                'label' => 'Median Sale Price',
-                'formatter' => 'format_currency_compact',
-            ],
-            'months_of_inventory' => [
-                'label' => 'Months of Inventory',
-                'formatter' => 'format_number_1dp',
-            ],
-            'sale_to_list_ratio' => [
-                'label' => 'Sale-to-List Ratio',
-                'formatter' => 'format_percent_1dp',
-            ],
+            'median_sale_price' => 'Median Sale Price',
+            'months_of_inventory' => 'Months of Inventory',
+            'sale_to_list_ratio' => 'Sale-to-List Ratio',
         ];
 
         if ( '' === $community_key ) {
             $this->log_missing_community_key();
-            $this->render_stats_grid( array(), $stats );
             return;
         }
 
@@ -78,21 +68,45 @@ class Community_Stats_Element extends Element {
     }
 
     private function render_stats_grid( array $market, array $stats ): void {
-        echo '<div class="cl-stats-grid">';
-        foreach ( $stats as $key => $config ) {
-            $formatter = $config['formatter'] ?? '';
-            $raw = array_key_exists( $key, $market ) ? $market[ $key ] : null;
-            $value = method_exists( __CLASS__, $formatter ) ? self::{$formatter}( $raw ) : '';
-            $this->render_stat_card( (string) $config['label'], $value );
+        $cards = '';
+
+        foreach ( $stats as $key => $label ) {
+            if ( ! array_key_exists( $key, $market ) ) {
+                continue;
+            }
+
+            $value = $market[ $key ];
+            if ( $this->is_missing_stat_value( $value ) ) {
+                continue;
+            }
+
+            $cards .= $this->render_stat_card( (string) $value, (string) $label );
         }
-        echo '</div>';
+
+        if ( '' === $cards ) {
+            return;
+        }
+
+        echo '<div class="cl-stats-grid">' . $cards . '</div>';
     }
 
-    private function render_stat_card( string $label, string $value ): void {
-        echo '<div class="cl-stat">';
-        echo '<div class="cl-stat__label">' . esc_html( $label ) . '</div>';
-        echo '<div class="cl-stat__value">' . esc_html( $value ) . '</div>';
-        echo '</div>';
+    private function render_stat_card( string $value, string $label ): string {
+        return '<div class="cl-stat">'
+            . '<div class="cl-stat__value">' . esc_html( $value ) . '</div>'
+            . '<div class="cl-stat__label">' . esc_html( $label ) . '</div>'
+            . '</div>';
+    }
+
+    private function is_missing_stat_value( $value ): bool {
+        if ( null === $value ) {
+            return true;
+        }
+
+        if ( is_string( $value ) ) {
+            return '' === trim( $value );
+        }
+
+        return false;
     }
 
     private function fetch_market_data( string $community_key, int $months ): array {
@@ -177,53 +191,6 @@ class Community_Stats_Element extends Element {
         }
 
         return $resolved;
-    }
-
-    public static function format_currency_compact( $value ): string {
-        if ( null === $value || '' === $value || ! is_numeric( $value ) ) {
-            return '';
-        }
-
-        $number = (float) $value;
-        $sign = $number < 0 ? '-' : '';
-        $abs = abs( $number );
-
-        if ( $abs >= 1000000 ) {
-            $compact = self::trim_trailing_zero( number_format( $abs / 1000000, 1, '.', '' ) );
-            return $sign . '$' . $compact . 'M';
-        }
-
-        if ( $abs >= 1000 ) {
-            $compact = self::trim_trailing_zero( number_format( $abs / 1000, 1, '.', '' ) );
-            return $sign . '$' . $compact . 'K';
-        }
-
-        return $sign . '$' . number_format( $abs, 0, '.', ',' );
-    }
-
-    public static function format_percent_1dp( $value ): string {
-        if ( null === $value || '' === $value || ! is_numeric( $value ) ) {
-            return '';
-        }
-
-        return number_format( (float) $value * 100, 1, '.', '' ) . '%';
-    }
-
-    public static function format_number_1dp( $value ): string {
-        if ( null === $value || '' === $value || ! is_numeric( $value ) ) {
-            return '';
-        }
-
-        return number_format( (float) $value, 1, '.', '' );
-    }
-
-    private static function trim_trailing_zero( string $value ): string {
-        if ( false === strpos( $value, '.' ) ) {
-            return $value;
-        }
-
-        $value = rtrim( $value, '0' );
-        return rtrim( $value, '.' );
     }
 
     private function is_soft_failure_payload( array $payload ): bool {
