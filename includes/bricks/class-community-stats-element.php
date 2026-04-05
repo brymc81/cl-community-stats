@@ -24,13 +24,18 @@ class Community_Stats_Element extends Element {
         return array( 'community', 'stats', 'market', 'cl' );
     }
 
+    public function set_control_groups() {
+        $this->control_groups['query'] = array(
+            'title' => __( 'Query', 'cl-community-stats' ),
+        );
+    }
+
     public function set_controls() {
-        $this->controls['community_key'] = [
+        $this->controls['community_key_input'] = [
             'tab' => 'content',
+            'group' => 'query',
             'label' => 'Community Key',
             'type' => 'text',
-            'default' => '',
-            'required' => true,
             'hasDynamicData' => true,
         ];
 
@@ -43,10 +48,13 @@ class Community_Stats_Element extends Element {
         );
     }
 
+    /**
+     * Resolve the canonical community key, request stats from the engine, and render stat cards.
+     */
     public function render() {
-        $community_key = $this->settings['community_key'] ?? '';
-        $community_key = $this->render_dynamic_value( $community_key );
-        $community_key = sanitize_text_field( $community_key );
+        $community_key = $this->settings['community_key_input'] ?? ( $this->settings['community_key'] ?? '' );
+        $community_key = $this->render_dynamic_data( $community_key );
+        $community_key = is_scalar( $community_key ) ? trim( sanitize_text_field( (string) $community_key ) ) : '';
 
         $months_raw = isset( $this->settings['months'] ) ? $this->settings['months'] : 12;
         $months = intval( $this->render_dynamic_value( $months_raw ) );

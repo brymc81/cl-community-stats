@@ -1,24 +1,24 @@
 # cl-community-stats
 
-Presentation adapter for community market stats.
+## Purpose
+Community market-stat presentation adapter for Bricks.
 
-## What This Plugin Does
-- Registers the Community Stats Bricks element.
-- Requests canonical stats from `cl-reso-link`.
-- Renders minimal SSR stat cards (`value` + `label`) from engine values.
+## Inputs
+- Builder controls:
+  - `community_key_input`
+  - `months`
+- Runtime fallback:
+  - legacy saved `community_key`
 
-## Required Inputs
-- `community_key` (required)
+## Output
+- SSR stat cards rendered from canonical community stats
 
-Optional:
-- `months` (default `12`)
+## Dependencies
+- `cl-reso-link`
+- `/wp-json/cl-reso-link/v1/stats/community`
 
-## Dependency on cl-reso-link
-- Endpoint: `/wp-json/cl-reso-link/v1/stats/community`
-- Canonical schema/contract authority: `../cl-reso-link/docs/*`
-
-## Unique Behavior
-- Fail-soft output (missing/invalid stats are hidden)
-- No empty stats container when no stat values exist
-- No client-side query construction
-- No MLS interpretation, local aggregation, or local calculations
+## Known Constraints
+- `community_key_input` is the builder-facing key and falls back to legacy `community_key`
+- dynamic community values are resolved with Bricks-native `render_dynamic_data()`
+- `months` remains a plugin-local numeric input and is not part of the community-key standardization path
+- the plugin hides missing metrics instead of inventing replacements
