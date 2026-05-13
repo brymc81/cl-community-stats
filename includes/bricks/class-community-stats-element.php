@@ -3,6 +3,7 @@
 namespace CL_Community_Stats\Bricks;
 
 use Bricks\Element;
+use CL_Community_Stats\Community_Stats_Presenter;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -13,8 +14,6 @@ class Community_Stats_Element extends Element {
     public $name = 'cl-community-stats';
     public $category = 'general';
     public $icon = 'ti-stats-up';
-    private static $missing_community_key_logged = false;
-    private static $invalid_response_logged = false;
 
     public function get_label() {
         return __( 'Community Stats', 'cl-community-stats' );
@@ -28,166 +27,146 @@ class Community_Stats_Element extends Element {
         $this->control_groups['query'] = array(
             'title' => __( 'Query', 'cl-community-stats' ),
         );
+
+        $this->control_groups['display'] = array(
+            'title' => __( 'Display', 'cl-community-stats' ),
+        );
     }
 
     public function set_controls() {
-        $this->controls['community_key_input'] = [
+        $this->controls['geo_shape_id_input'] = array(
             'tab' => 'content',
             'group' => 'query',
-            'label' => 'Community Key',
+            'label' => __( 'Geo Shape ID', 'cl-community-stats' ),
             'type' => 'text',
+            'placeholder' => 'mount_pleasant',
             'hasDynamicData' => true,
-        ];
+        );
+
+        $this->controls['community_input'] = array(
+            'tab' => 'content',
+            'group' => 'query',
+            'label' => __( 'Community', 'cl-community-stats' ),
+            'type' => 'text',
+            'placeholder' => 'mount_pleasant',
+            'hasDynamicData' => true,
+        );
+
+        $this->controls['community_key_input'] = array(
+            'tab' => 'content',
+            'group' => 'query',
+            'label' => __( 'Community Key', 'cl-community-stats' ),
+            'type' => 'text',
+            'placeholder' => 'mount_pleasant',
+            'hasDynamicData' => true,
+        );
 
         $this->controls['months'] = array(
+            'tab' => 'content',
+            'group' => 'query',
             'label' => __( 'Months', 'cl-community-stats' ),
             'type' => 'number',
             'default' => 12,
             'min' => 1,
+            'max' => 60,
             'hasDynamicData' => true,
         );
-    }
 
-    /**
-     * Resolve the canonical community key, request stats from the engine, and render stat cards.
-     */
-    public function render() {
-        $community_key = $this->settings['community_key_input'] ?? ( $this->settings['community_key'] ?? '' );
-        $community_key = $this->render_dynamic_data( $community_key );
-        $community_key = is_scalar( $community_key ) ? trim( sanitize_text_field( (string) $community_key ) ) : '';
-
-        $months_raw = isset( $this->settings['months'] ) ? $this->settings['months'] : 12;
-        $months = intval( $this->render_dynamic_value( $months_raw ) );
-        $months = max( 1, min( 60, $months ) );
-
-        $stats = [
-            'median_sale_price' => 'Median Sale Price',
-            'months_of_inventory' => 'Months of Inventory',
-            'sale_to_list_ratio' => 'Sale-to-List Ratio',
-        ];
-
-        if ( '' === $community_key ) {
-            $this->log_missing_community_key();
-            return;
-        }
-
-        $market = $this->fetch_market_data( $community_key, $months );
-        $this->render_stats_grid( $market, $stats );
-    }
-
-    private function render_stats_grid( array $market, array $stats ): void {
-        $cards = '';
-
-        foreach ( $stats as $key => $label ) {
-            if ( ! array_key_exists( $key, $market ) ) {
-                continue;
-            }
-
-            $value = $market[ $key ];
-            if ( $this->is_missing_stat_value( $value ) ) {
-                continue;
-            }
-
-            $cards .= $this->render_stat_card( (string) $value, (string) $label );
-        }
-
-        if ( '' === $cards ) {
-            return;
-        }
-
-        echo '<div class="cl-stats-grid">' . $cards . '</div>';
-    }
-
-    private function render_stat_card( string $value, string $label ): string {
-        return '<div class="cl-stat">'
-            . '<div class="cl-stat__value">' . esc_html( $value ) . '</div>'
-            . '<div class="cl-stat__label">' . esc_html( $label ) . '</div>'
-            . '</div>';
-    }
-
-    private function is_missing_stat_value( $value ): bool {
-        if ( null === $value ) {
-            return true;
-        }
-
-        if ( is_string( $value ) ) {
-            return '' === trim( $value );
-        }
-
-        return false;
-    }
-
-    private function fetch_market_data( string $community_key, int $months ): array {
-        if ( '' === $community_key ) {
-            return array();
-        }
-
-        $endpoint = rest_url( 'cl-reso-link/v1/stats/community' );
-        $url = add_query_arg(
-            array(
-                'community_key' => $community_key,
-                'months' => $months,
+        $this->controls['metrics'] = array(
+            'tab' => 'content',
+            'group' => 'display',
+            'label' => __( 'Metrics', 'cl-community-stats' ),
+            'type' => 'select',
+            'multiple' => true,
+            'placeholder' => __( 'Select metrics', 'cl-community-stats' ),
+            'default' => array(
+                'median_sale_price',
+                'months_of_inventory',
+                'sale_to_list_ratio',
             ),
-            $endpoint
+            'options' => array(
+                'median_list_price'    => __( 'Median List Price', 'cl-community-stats' ),
+                'median_sale_price'    => __( 'Median Sale Price', 'cl-community-stats' ),
+                'sale_to_list_ratio'   => __( 'Sale-to-List Ratio', 'cl-community-stats' ),
+                'months_of_inventory'  => __( 'Months of Inventory', 'cl-community-stats' ),
+                'active_listing_count' => __( 'Active Listings', 'cl-community-stats' ),
+                'closed_sales_count'   => __( 'Closed Sales', 'cl-community-stats' ),
+            ),
         );
 
-        $response = wp_remote_get(
-            $url,
-            array(
-                'timeout' => 10,
-            )
+        $this->controls['display_mode'] = array(
+            'tab' => 'content',
+            'group' => 'display',
+            'label' => __( 'Display Mode', 'cl-community-stats' ),
+            'type' => 'select',
+            'options' => array(
+                'cards' => __( 'Cards', 'cl-community-stats' ),
+                'inline' => __( 'Inline', 'cl-community-stats' ),
+                'list' => __( 'List', 'cl-community-stats' ),
+            ),
+            'default' => 'cards',
         );
 
-        if ( is_wp_error( $response ) ) {
-            $this->log_invalid_response( 'request_error' );
-            return array();
-        }
-
-        $status = (int) wp_remote_retrieve_response_code( $response );
-        if ( $status < 200 || $status >= 300 ) {
-            $this->log_invalid_response( 'http_' . $status );
-            return array();
-        }
-
-        $body = wp_remote_retrieve_body( $response );
-        if ( ! is_string( $body ) || '' === $body ) {
-            $this->log_invalid_response( 'empty_body' );
-            return array();
-        }
-
-        $decoded = json_decode( $body, true );
-        if ( ! is_array( $decoded ) ) {
-            $this->log_invalid_response( 'invalid_json' );
-            return array();
-        }
-
-        if ( $this->is_soft_failure_payload( $decoded ) ) {
-            return array();
-        }
-
-        if ( ! isset( $decoded['data'] ) || ! is_array( $decoded['data'] ) || ! array_key_exists( 'market', $decoded['data'] ) ) {
-            $this->log_invalid_response( 'invalid_shape' );
-            return array();
-        }
-
-        $market = $decoded['data']['market'];
-        if ( ! is_array( $market ) ) {
-            $this->log_invalid_response( 'invalid_shape' );
-            return array();
-        }
-
-        return $market;
+        $this->controls['empty_state'] = array(
+            'tab' => 'content',
+            'group' => 'display',
+            'label' => __( 'Empty State', 'cl-community-stats' ),
+            'type' => 'select',
+            'options' => array(
+                'hide' => __( 'Hide', 'cl-community-stats' ),
+                'message' => __( 'Message', 'cl-community-stats' ),
+            ),
+            'default' => 'hide',
+        );
     }
 
-    private function render_dynamic_value( $value ): string {
-        if ( ! is_scalar( $value ) ) {
+    public function render() {
+        $presenter = new Community_Stats_Presenter();
+        $post_id = (int) get_the_ID();
+
+        $context_inputs = array(
+            'geo_shape_id_input' => $this->resolve_dynamic_text_setting( 'geo_shape_id_input', $post_id ),
+            'community_input' => $this->resolve_dynamic_text_setting( 'community_input', $post_id ),
+            'community_key_input' => $this->resolve_dynamic_text_setting( 'community_key_input', $post_id ),
+            'community_key' => $this->resolve_dynamic_text_setting( 'community_key', $post_id ),
+        );
+
+        $months = $presenter->resolve_months( $this->resolve_dynamic_text_setting( 'months', $post_id, '12' ) );
+        $metrics = $presenter->resolve_metrics( $this->settings['metrics'] ?? array() );
+        $display_mode = $presenter->resolve_display_mode( $this->settings['display_mode'] ?? 'cards' );
+        $empty_state = $presenter->resolve_empty_state( $this->settings['empty_state'] ?? 'hide' );
+
+        $result = $presenter->fetch_market_stats( $context_inputs, $months );
+
+        if ( 'ok' === $result['state'] ) {
+            $markup = $presenter->render_market_stats( $result['market'], $metrics, $display_mode, $empty_state );
+        } else {
+            $markup = $presenter->render_empty_state( $display_mode, $empty_state, __( 'Statistics unavailable for this context.', 'cl-community-stats' ) );
+        }
+
+        if ( '' === $markup ) {
+            return;
+        }
+
+        echo $markup; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+
+    private function resolve_dynamic_text_setting( string $key, int $post_id, string $default = '' ): string {
+        $raw = $this->settings[ $key ] ?? $default;
+
+        if ( ! is_scalar( $raw ) ) {
             return '';
         }
 
-        $resolved = (string) $value;
+        $resolved = (string) $raw;
 
-        if ( function_exists( 'bricks_render_dynamic_data' ) ) {
-            $dynamic = bricks_render_dynamic_data( $resolved, get_the_ID() );
+        if ( method_exists( $this, 'render_dynamic_data' ) ) {
+            $dynamic = $this->render_dynamic_data( $resolved, $post_id );
+            if ( is_scalar( $dynamic ) ) {
+                $resolved = (string) $dynamic;
+            }
+        } elseif ( function_exists( 'bricks_render_dynamic_data' ) ) {
+            $dynamic = bricks_render_dynamic_data( $resolved, $post_id );
             if ( is_scalar( $dynamic ) ) {
                 $resolved = (string) $dynamic;
             }
@@ -201,34 +180,7 @@ class Community_Stats_Element extends Element {
         return $resolved;
     }
 
-    private function is_soft_failure_payload( array $payload ): bool {
-        if ( ! isset( $payload['state'] ) || ! is_string( $payload['state'] ) ) {
-            return false;
-        }
-
-        $state = strtolower( trim( $payload['state'] ) );
-        return in_array( $state, array( 'no_context', 'invalid_context', 'engine_error' ), true );
-    }
-
     private function is_unresolved_dynamic_placeholder( string $value ): bool {
         return 1 === preg_match( '/^\{[a-z0-9_:-]+\}$/i', trim( $value ) );
-    }
-
-    private function log_missing_community_key(): void {
-        if ( self::$missing_community_key_logged ) {
-            return;
-        }
-
-        error_log( '[CL Community Stats] Missing required community_key; rendering empty state.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-        self::$missing_community_key_logged = true;
-    }
-
-    private function log_invalid_response( string $reason ): void {
-        if ( self::$invalid_response_logged ) {
-            return;
-        }
-
-        error_log( '[CL Community Stats] Invalid stats response (' . $reason . '); rendering empty state.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-        self::$invalid_response_logged = true;
     }
 }

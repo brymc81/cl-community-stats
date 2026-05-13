@@ -12,6 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'CL_COMMUNITY_STATS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
+$presenter_file = CL_COMMUNITY_STATS_PLUGIN_DIR . 'includes/class-community-stats-presenter.php';
+if ( file_exists( $presenter_file ) ) {
+    require_once $presenter_file;
+}
+
 add_action( 'init', 'cl_community_stats_register_bricks_element', 11 );
 
 /**
