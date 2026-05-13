@@ -150,8 +150,6 @@ sale_to_list_ratio
 months_of_inventory
 active_listing_count
 closed_sales_count
-lookback_months
-as_of
 ```
 
 The plugin may let users select which metrics to display, but it must not redefine formulas.
@@ -198,6 +196,10 @@ Suggested classes:
 .cl-community-stats__label
 .cl-community-stats__meta
 .cl-community-stats__empty
+.cl-community-stat
+.cl-community-stat--{metric-slug}
+.cl-community-stat__value
+.cl-community-stat__label
 ```
 
 Avoid excessive inline styles.

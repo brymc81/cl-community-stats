@@ -34,6 +34,8 @@ class Community_Stats_Element extends Element {
     }
 
     public function set_controls() {
+        $presenter = new Community_Stats_Presenter();
+
         $this->controls['geo_shape_id_input'] = array(
             'tab' => 'content',
             'group' => 'query',
@@ -84,14 +86,7 @@ class Community_Stats_Element extends Element {
                 'months_of_inventory',
                 'sale_to_list_ratio',
             ),
-            'options' => array(
-                'median_list_price'    => __( 'Median List Price', 'cl-community-stats' ),
-                'median_sale_price'    => __( 'Median Sale Price', 'cl-community-stats' ),
-                'sale_to_list_ratio'   => __( 'Sale-to-List Ratio', 'cl-community-stats' ),
-                'months_of_inventory'  => __( 'Months of Inventory', 'cl-community-stats' ),
-                'active_listing_count' => __( 'Active Listings', 'cl-community-stats' ),
-                'closed_sales_count'   => __( 'Closed Sales', 'cl-community-stats' ),
-            ),
+            'options' => $presenter->get_metric_definitions(),
         );
 
         $this->controls['display_mode'] = array(
@@ -103,8 +98,31 @@ class Community_Stats_Element extends Element {
                 'cards' => __( 'Cards', 'cl-community-stats' ),
                 'inline' => __( 'Inline', 'cl-community-stats' ),
                 'list' => __( 'List', 'cl-community-stats' ),
+                'single' => __( 'Single', 'cl-community-stats' ),
             ),
             'default' => 'cards',
+        );
+
+        $this->controls['metric'] = array(
+            'tab' => 'content',
+            'group' => 'display',
+            'label' => __( 'Single Metric', 'cl-community-stats' ),
+            'type' => 'select',
+            'options' => $presenter->get_metric_definitions(),
+            'default' => 'median_sale_price',
+            'required' => array( 'display_mode', '=', 'single' ),
+        );
+
+        $this->controls['show_label'] = array(
+            'tab' => 'content',
+            'group' => 'display',
+            'label' => __( 'Show Label', 'cl-community-stats' ),
+            'type' => 'select',
+            'options' => array(
+                'true' => __( 'Yes', 'cl-community-stats' ),
+                'false' => __( 'No', 'cl-community-stats' ),
+            ),
+            'default' => 'true',
         );
 
         $this->controls['empty_state'] = array(
@@ -134,11 +152,16 @@ class Community_Stats_Element extends Element {
         $months = $presenter->resolve_months( $this->resolve_dynamic_text_setting( 'months', $post_id, '12' ) );
         $metrics = $presenter->resolve_metrics( $this->settings['metrics'] ?? array() );
         $display_mode = $presenter->resolve_display_mode( $this->settings['display_mode'] ?? 'cards' );
+        $single_metric = $presenter->resolve_metric( $this->settings['metric'] ?? '', $metrics[0] ?? '' );
+        $show_label = $presenter->resolve_boolean( $this->settings['show_label'] ?? 'true', true );
         $empty_state = $presenter->resolve_empty_state( $this->settings['empty_state'] ?? 'hide' );
 
         $result = $presenter->fetch_market_stats( $context_inputs, $months );
 
-        if ( 'ok' === $result['state'] ) {
+        if ( 'single' === $display_mode ) {
+            $market = 'ok' === $result['state'] ? $result['market'] : array();
+            $markup = $presenter->render_single_stat( $market, $single_metric, $show_label, $empty_state, 'full' );
+        } elseif ( 'ok' === $result['state'] ) {
             $markup = $presenter->render_market_stats( $result['market'], $metrics, $display_mode, $empty_state );
         } else {
             $markup = $presenter->render_empty_state( $display_mode, $empty_state, __( 'Statistics unavailable for this context.', 'cl-community-stats' ) );

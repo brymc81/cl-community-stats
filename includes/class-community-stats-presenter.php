@@ -23,7 +23,7 @@ class Community_Stats_Presenter {
         'sale_to_list_ratio',
     );
 
-    private const DISPLAY_MODES = array( 'cards', 'inline', 'list' );
+    private const DISPLAY_MODES = array( 'cards', 'inline', 'list', 'single' );
 
     private const EMPTY_STATES = array( 'hide', 'message' );
 
@@ -71,6 +71,21 @@ class Community_Stats_Presenter {
         return array_values( array_unique( $allowed ) );
     }
 
+    public function resolve_metric( $raw_metric, string $fallback = '' ): string {
+        if ( is_scalar( $raw_metric ) ) {
+            $candidate = trim( (string) $raw_metric );
+            if ( isset( self::METRIC_DEFINITIONS[ $candidate ] ) ) {
+                return $candidate;
+            }
+        }
+
+        if ( '' !== $fallback && isset( self::METRIC_DEFINITIONS[ $fallback ] ) ) {
+            return $fallback;
+        }
+
+        return self::DEFAULT_METRICS[0];
+    }
+
     public function resolve_display_mode( $raw_mode ): string {
         $mode = is_scalar( $raw_mode ) ? strtolower( trim( (string) $raw_mode ) ) : '';
         return in_array( $mode, self::DISPLAY_MODES, true ) ? $mode : 'cards';
@@ -79,6 +94,35 @@ class Community_Stats_Presenter {
     public function resolve_empty_state( $raw_empty_state ): string {
         $empty_state = is_scalar( $raw_empty_state ) ? strtolower( trim( (string) $raw_empty_state ) ) : '';
         return in_array( $empty_state, self::EMPTY_STATES, true ) ? $empty_state : 'hide';
+    }
+
+    public function resolve_boolean( $raw_value, bool $default = true ): bool {
+        if ( null === $raw_value ) {
+            return false;
+        }
+
+        if ( is_bool( $raw_value ) ) {
+            return $raw_value;
+        }
+
+        if ( ! is_scalar( $raw_value ) ) {
+            return false;
+        }
+
+        $value = strtolower( trim( (string) $raw_value ) );
+        if ( '' === $value ) {
+            return false;
+        }
+
+        if ( in_array( $value, array( '1', 'true', 'yes', 'on' ), true ) ) {
+            return true;
+        }
+
+        if ( in_array( $value, array( '0', 'false', 'no', 'off' ), true ) ) {
+            return false;
+        }
+
+        return $default;
     }
 
     public function fetch_market_stats( array $context_inputs, int $months ): array {
@@ -175,6 +219,11 @@ class Community_Stats_Presenter {
 
     public function render_market_stats( array $market, array $metrics, string $display_mode, string $empty_state ): string {
         $mode = $this->resolve_display_mode( $display_mode );
+        if ( 'single' === $mode ) {
+            $metric = $this->resolve_metric( $metrics[0] ?? '' );
+            return $this->render_single_stat( $market, $metric, true, $empty_state, 'full' );
+        }
+
         $items_markup = '';
 
         foreach ( $metrics as $metric ) {
@@ -201,12 +250,35 @@ class Community_Stats_Presenter {
         return $this->render_wrapper( $mode, $items_markup );
     }
 
+    public function render_single_stat( array $market, string $metric, bool $show_label = true, string $empty_state = 'hide', string $output = 'full' ): string {
+        $resolved_metric = $this->resolve_metric( $metric );
+
+        if ( ! array_key_exists( $resolved_metric, $market ) ) {
+            return $this->render_single_empty_state( $resolved_metric, $empty_state, $output );
+        }
+
+        $formatted = $this->format_metric_value( $resolved_metric, $market[ $resolved_metric ] );
+        if ( '' === $formatted ) {
+            return $this->render_single_empty_state( $resolved_metric, $empty_state, $output );
+        }
+
+        if ( 'value' === $output ) {
+            return esc_html( $formatted );
+        }
+
+        return $this->render_single_wrapper( $resolved_metric, $formatted, $show_label );
+    }
+
     public function render_empty_state( string $display_mode, string $empty_state, string $message ): string {
         $mode = $this->resolve_display_mode( $display_mode );
         $state = $this->resolve_empty_state( $empty_state );
 
         if ( 'message' !== $state ) {
             return '';
+        }
+
+        if ( 'single' === $mode ) {
+            return '<div class="cl-community-stat"><div class="cl-community-stats__empty">' . esc_html( $message ) . '</div></div>';
         }
 
         $empty_markup = '<div class="cl-community-stats__empty">' . esc_html( $message ) . '</div>';
@@ -317,6 +389,33 @@ class Community_Stats_Presenter {
         }
 
         return '<div class="' . esc_attr( $class ) . '">' . $inner_markup . '</div>';
+    }
+
+    private function render_single_wrapper( string $metric, string $value, bool $show_label ): string {
+        $class = 'cl-community-stat cl-community-stat--' . esc_attr( $metric );
+        $markup = '<div class="cl-community-stat__value">' . esc_html( $value ) . '</div>';
+
+        if ( $show_label ) {
+            $markup .= '<div class="cl-community-stat__label">' . esc_html( self::METRIC_DEFINITIONS[ $metric ] ) . '</div>';
+        }
+
+        return '<div class="' . $class . '">' . $markup . '</div>';
+    }
+
+    private function render_single_empty_state( string $metric, string $empty_state, string $output ): string {
+        $state = $this->resolve_empty_state( $empty_state );
+
+        if ( 'message' !== $state ) {
+            return '';
+        }
+
+        $message = __( 'No statistic available.', 'cl-community-stats' );
+        if ( 'value' === $output ) {
+            return esc_html( $message );
+        }
+
+        $class = 'cl-community-stat cl-community-stat--' . esc_attr( $metric );
+        return '<div class="' . $class . '"><div class="cl-community-stats__empty">' . esc_html( $message ) . '</div></div>';
     }
 
     private function render_metric_item( string $label, string $value, string $display_mode ): string {
