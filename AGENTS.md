@@ -215,6 +215,7 @@ Display formatting is allowed, but must be explicit and presentation-only.
 Examples:
 
 - currency formatting for price metrics
+- compact currency formatting for price metrics (e.g. `$858k`, `$1.4m`)
 - percent formatting for sale-to-list ratio
 - decimal formatting for months of inventory
 - date formatting for `as_of`

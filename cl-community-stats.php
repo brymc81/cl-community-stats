@@ -75,6 +75,7 @@ function cl_community_stats_shortcode_grouped( array $atts = array() ): string {
             'empty_state' => 'hide',
             'metric' => '',
             'show_label' => 'true',
+            'number_format' => 'default',
             'output' => 'full',
         ),
         $atts,
@@ -84,6 +85,7 @@ function cl_community_stats_shortcode_grouped( array $atts = array() ): string {
     $months = $presenter->resolve_months( $atts['months'] );
     $display_mode = $presenter->resolve_display_mode( $atts['display_mode'] );
     $empty_state = $presenter->resolve_empty_state( $atts['empty_state'] );
+    $number_format = $presenter->resolve_number_format( $atts['number_format'] );
     $metrics = $presenter->resolve_metrics( $atts['metrics'] );
 
     $context_inputs = cl_community_stats_build_context_inputs( $atts );
@@ -95,14 +97,14 @@ function cl_community_stats_shortcode_grouped( array $atts = array() ): string {
         $output = ( 'value' === strtolower( trim( (string) $atts['output'] ) ) ) ? 'value' : 'full';
         $market = 'ok' === $result['state'] ? $result['market'] : array();
 
-        return $presenter->render_single_stat( $market, $single_metric, $show_label, $empty_state, $output );
+        return $presenter->render_single_stat( $market, $single_metric, $show_label, $empty_state, $output, $number_format );
     }
 
     if ( 'ok' !== $result['state'] ) {
         return $presenter->render_empty_state( $display_mode, $empty_state, __( 'Statistics unavailable for this context.', 'cl-community-stats' ) );
     }
 
-    return $presenter->render_market_stats( $result['market'], $metrics, $display_mode, $empty_state );
+    return $presenter->render_market_stats( $result['market'], $metrics, $display_mode, $empty_state, $number_format );
 }
 
 /**
@@ -128,6 +130,7 @@ function cl_community_stats_shortcode_single( array $atts = array() ): string {
             'display_mode' => 'single',
             'show_label' => 'true',
             'empty_state' => 'hide',
+            'number_format' => 'default',
             'output' => 'full',
         ),
         $atts,
@@ -139,6 +142,7 @@ function cl_community_stats_shortcode_single( array $atts = array() ): string {
     $metric = $presenter->resolve_metric( $atts['metric'], $metrics[0] ?? '' );
     $show_label = $presenter->resolve_boolean( $atts['show_label'], true );
     $empty_state = $presenter->resolve_empty_state( $atts['empty_state'] );
+    $number_format = $presenter->resolve_number_format( $atts['number_format'] );
     $output = ( 'value' === strtolower( trim( (string) $atts['output'] ) ) ) ? 'value' : 'full';
 
     $context_inputs = cl_community_stats_build_context_inputs( $atts );
@@ -146,7 +150,7 @@ function cl_community_stats_shortcode_single( array $atts = array() ): string {
 
     $market = 'ok' === $result['state'] ? $result['market'] : array();
 
-    return $presenter->render_single_stat( $market, $metric, $show_label, $empty_state, $output );
+    return $presenter->render_single_stat( $market, $metric, $show_label, $empty_state, $output, $number_format );
 }
 
 /**

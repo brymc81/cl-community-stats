@@ -125,6 +125,18 @@ class Community_Stats_Element extends Element {
             'default' => 'true',
         );
 
+        $this->controls['number_format'] = array(
+            'tab' => 'content',
+            'group' => 'display',
+            'label' => __( 'Number Format', 'cl-community-stats' ),
+            'type' => 'select',
+            'options' => array(
+                'default' => __( 'Default', 'cl-community-stats' ),
+                'compact' => __( 'Compact', 'cl-community-stats' ),
+            ),
+            'default' => 'default',
+        );
+
         $this->controls['empty_state'] = array(
             'tab' => 'content',
             'group' => 'display',
@@ -154,15 +166,16 @@ class Community_Stats_Element extends Element {
         $display_mode = $presenter->resolve_display_mode( $this->settings['display_mode'] ?? 'cards' );
         $single_metric = $presenter->resolve_metric( $this->settings['metric'] ?? '', $metrics[0] ?? '' );
         $show_label = $presenter->resolve_boolean( $this->settings['show_label'] ?? 'true', true );
+        $number_format = $presenter->resolve_number_format( $this->settings['number_format'] ?? 'default' );
         $empty_state = $presenter->resolve_empty_state( $this->settings['empty_state'] ?? 'hide' );
 
         $result = $presenter->fetch_market_stats( $context_inputs, $months );
 
         if ( 'single' === $display_mode ) {
             $market = 'ok' === $result['state'] ? $result['market'] : array();
-            $markup = $presenter->render_single_stat( $market, $single_metric, $show_label, $empty_state, 'full' );
+            $markup = $presenter->render_single_stat( $market, $single_metric, $show_label, $empty_state, 'full', $number_format );
         } elseif ( 'ok' === $result['state'] ) {
-            $markup = $presenter->render_market_stats( $result['market'], $metrics, $display_mode, $empty_state );
+            $markup = $presenter->render_market_stats( $result['market'], $metrics, $display_mode, $empty_state, $number_format );
         } else {
             $markup = $presenter->render_empty_state( $display_mode, $empty_state, __( 'Statistics unavailable for this context.', 'cl-community-stats' ) );
         }

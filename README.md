@@ -37,6 +37,7 @@ Only the highest-precedence valid context param is sent to:
 - `display_mode`: `cards`, `inline`, `list`, `single`
 - `metric` (single-mode metric)
 - `show_label` (`true`/`false`)
+- `number_format` (`default`/`compact`)
 - `empty_state` (`hide`/`message`)
 
 ## Output Classes
@@ -76,13 +77,14 @@ Optional shortcode attrs:
 - `months` (default `12`)
 - `empty_state` (`hide`/`message`)
 - `show_label` (`true`/`false`, single mode)
+- `number_format` (`default`/`compact`; price metrics only)
 - `display_mode` (`cards`/`inline`/`list`/`single`, grouped shortcode)
 - `metric` (for grouped shortcode when `display_mode="single"`)
 - `output` (`full`/`value`; `value` applies to single-stat rendering)
 
 ## Formatting
 Presentation-only formatting:
-- price metrics as currency
+- price metrics as currency (`default`) or compact currency (`compact`, e.g. `$858k`, `$1.4m`)
 - `sale_to_list_ratio` as percentage
 - `months_of_inventory` as decimal
 - counts as formatted integers

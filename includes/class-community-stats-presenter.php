@@ -26,6 +26,7 @@ class Community_Stats_Presenter {
     private const DISPLAY_MODES = array( 'cards', 'inline', 'list', 'single' );
 
     private const EMPTY_STATES = array( 'hide', 'message' );
+    private const NUMBER_FORMATS = array( 'default', 'compact' );
 
     private static $missing_context_logged = false;
 
@@ -94,6 +95,11 @@ class Community_Stats_Presenter {
     public function resolve_empty_state( $raw_empty_state ): string {
         $empty_state = is_scalar( $raw_empty_state ) ? strtolower( trim( (string) $raw_empty_state ) ) : '';
         return in_array( $empty_state, self::EMPTY_STATES, true ) ? $empty_state : 'hide';
+    }
+
+    public function resolve_number_format( $raw_number_format ): string {
+        $number_format = is_scalar( $raw_number_format ) ? strtolower( trim( (string) $raw_number_format ) ) : '';
+        return in_array( $number_format, self::NUMBER_FORMATS, true ) ? $number_format : 'default';
     }
 
     public function resolve_boolean( $raw_value, bool $default = true ): bool {
@@ -217,11 +223,13 @@ class Community_Stats_Presenter {
         );
     }
 
-    public function render_market_stats( array $market, array $metrics, string $display_mode, string $empty_state ): string {
+    public function render_market_stats( array $market, array $metrics, string $display_mode, string $empty_state, string $number_format = 'default' ): string {
         $mode = $this->resolve_display_mode( $display_mode );
+        $resolved_number_format = $this->resolve_number_format( $number_format );
+
         if ( 'single' === $mode ) {
             $metric = $this->resolve_metric( $metrics[0] ?? '' );
-            return $this->render_single_stat( $market, $metric, true, $empty_state, 'full' );
+            return $this->render_single_stat( $market, $metric, true, $empty_state, 'full', $resolved_number_format );
         }
 
         $items_markup = '';
@@ -235,7 +243,7 @@ class Community_Stats_Presenter {
                 continue;
             }
 
-            $formatted = $this->format_metric_value( $metric, $market[ $metric ] );
+            $formatted = $this->format_metric_value( $metric, $market[ $metric ], $resolved_number_format );
             if ( '' === $formatted ) {
                 continue;
             }
@@ -250,14 +258,15 @@ class Community_Stats_Presenter {
         return $this->render_wrapper( $mode, $items_markup );
     }
 
-    public function render_single_stat( array $market, string $metric, bool $show_label = true, string $empty_state = 'hide', string $output = 'full' ): string {
+    public function render_single_stat( array $market, string $metric, bool $show_label = true, string $empty_state = 'hide', string $output = 'full', string $number_format = 'default' ): string {
         $resolved_metric = $this->resolve_metric( $metric );
+        $resolved_number_format = $this->resolve_number_format( $number_format );
 
         if ( ! array_key_exists( $resolved_metric, $market ) ) {
             return $this->render_single_empty_state( $resolved_metric, $empty_state, $output );
         }
 
-        $formatted = $this->format_metric_value( $resolved_metric, $market[ $resolved_metric ] );
+        $formatted = $this->format_metric_value( $resolved_metric, $market[ $resolved_metric ], $resolved_number_format );
         if ( '' === $formatted ) {
             return $this->render_single_empty_state( $resolved_metric, $empty_state, $output );
         }
@@ -346,7 +355,7 @@ class Community_Stats_Presenter {
         return $token;
     }
 
-    private function format_metric_value( string $metric, $value ): string {
+    private function format_metric_value( string $metric, $value, string $number_format = 'default' ): string {
         if ( null === $value ) {
             return '';
         }
@@ -364,6 +373,10 @@ class Community_Stats_Presenter {
         switch ( $metric ) {
             case 'median_list_price':
             case 'median_sale_price':
+                if ( 'compact' === $number_format ) {
+                    return $this->format_compact_currency( $numeric );
+                }
+
                 return '$' . number_format( (int) round( $numeric ) );
 
             case 'sale_to_list_ratio':
@@ -432,6 +445,22 @@ class Community_Stats_Presenter {
     private function format_trimmed_decimal( float $value, int $precision ): string {
         $formatted = number_format( $value, $precision, '.', '' );
         return rtrim( rtrim( $formatted, '0' ), '.' );
+    }
+
+    private function format_compact_currency( float $value ): string {
+        $absolute = abs( $value );
+
+        if ( $absolute >= 1000000 ) {
+            $millions = $value / 1000000;
+            return '$' . $this->format_trimmed_decimal( $millions, 1 ) . 'm';
+        }
+
+        if ( $absolute >= 1000 ) {
+            $thousands = $value / 1000;
+            return '$' . $this->format_trimmed_decimal( $thousands, 1 ) . 'k';
+        }
+
+        return '$' . number_format( (int) round( $value ) );
     }
 
     private function is_soft_failure_payload( array $payload ): bool {
