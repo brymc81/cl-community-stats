@@ -3,6 +3,8 @@
 ## Purpose
 Community statistics presentation adapter for `cl-reso-link`.
 
+Stats endpoint behavior, market/statistical meaning, and canonical geo context authority live in `../cl-reso-link/docs/DOCS_AUTHORITY.md`. This README is the local usage and presentation guide for `cl-community-stats`.
+
 ## Architecture
 - SSR-first rendering for Bricks and shortcodes via shared presenter: `includes/class-community-stats-presenter.php`
 - Presentation-only plugin: no MLS/statistical calculations are performed here
